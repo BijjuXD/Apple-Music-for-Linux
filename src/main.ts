@@ -1,4 +1,5 @@
 import { app, BrowserWindow, components, session } from 'electron';
+import { initDiscordRPC, setActivity, setIdleActivity, clearActivity, destroyRPC } from './discord';
 import * as path from 'path';
 
 function createSplash() {
@@ -27,7 +28,73 @@ const ALLOWED_PERMISSIONS = new Set([
   'fullscreen',
 ]);
 
-const createWindow = (splash: BrowserWindow) => {
+let pollInterval: NodeJS.Timeout | null = null;
+let lastSong: string | null = null;
+let songStartTime: number = Date.now();
+
+function startTrackPolling(mainWindow: BrowserWindow) {
+  if (pollInterval) clearInterval(pollInterval);
+
+  setIdleActivity();
+
+  pollInterval = setInterval(async () => {
+    if (mainWindow.isDestroyed()) {
+      clearInterval(pollInterval!);
+      pollInterval = null;
+      return;
+    }
+
+    try {
+      // yet another hacky way to get the current track xD.
+      // is there any other way?
+      const track = await mainWindow.webContents.executeJavaScript(`
+        (() => {
+          const lcd = document.querySelector('.player-lcd__metadata');
+          if (!lcd) return null;
+
+          const song = lcd.querySelector('span.marquee-line__fragment')?.textContent?.trim();
+          if (!song || song === '—') return null;
+
+          const metaButtons = [...lcd.querySelectorAll('button.lcd-meta-line__fragment')]
+            .map(b => b.textContent?.trim())
+            .filter(Boolean);
+
+          const sepIdx = metaButtons.findIndex(t => t === '—');
+          const artistParts = sepIdx > 0
+            ? metaButtons.slice(0, sepIdx)
+            : metaButtons.slice(0, 1);
+          const album = sepIdx > 0 ? (metaButtons[sepIdx + 1] ?? '') : '';
+          const artist = artistParts.join(', ');
+
+          const paused = !!document.querySelector('button[aria-label="Play"]');
+
+          return { song, artist, album, paused };
+        })()
+      `);
+
+      console.log('[Poll] track data:', track);
+
+      if (track && !track.paused) {
+        if (track.song !== lastSong) {
+          lastSong = track.song;
+          songStartTime = Date.now();
+          setActivity(track.song, track.artist, track.album, songStartTime);
+        }
+      } else {
+        if (lastSong !== null) {
+          lastSong = null;
+          setIdleActivity();
+        } else if (track === null && lastSong === null) {
+          //
+        }
+      }
+    } catch (err) {
+      console.warn('[Poll] error:', err);
+    }
+  }, 5_000);
+}
+
+const createWindow = (splash: BrowserWindow): BrowserWindow => {
   const mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
@@ -50,7 +117,8 @@ const createWindow = (splash: BrowserWindow) => {
 
   mainWindow.once("ready-to-show", () => {
     splash?.close();
-    mainWindow?.show();
+    mainWindow.show();
+    startTrackPolling(mainWindow);
   });
 
   mainWindow.webContents.on('did-finish-load', () => {
@@ -63,13 +131,20 @@ const createWindow = (splash: BrowserWindow) => {
 
   mainWindow.webContents.on('page-title-updated', (event, title) => {
     event.preventDefault();
-
-    const clean = title
-     .replace(/\s*-\s*Web Player$/i, '')
-      .trim();
-
-   mainWindow.setTitle(clean || 'Music');
+    const clean = title.replace(/\s*-\s*Web Player$/i, '').trim();
+    mainWindow.setTitle(clean || 'Music');
   });
+
+  mainWindow.on('closed', () => {
+    if (pollInterval) {
+      clearInterval(pollInterval);
+      pollInterval = null;
+    }
+    lastSong = null;
+    clearActivity();
+  });
+
+  return mainWindow;
 };
 
 function setupPermissions(): void {
@@ -79,23 +154,21 @@ function setupPermissions(): void {
     }
   );
 
-  // required for DRM (widevine)
   session.defaultSession.setPermissionCheckHandler(
-    (_webContents, permission) => {
-      return ALLOWED_PERMISSIONS.has(permission);
-    }
+    (_webContents, permission) => ALLOWED_PERMISSIONS.has(permission)
   );
 }
 
 app.whenReady().then(async () => {
-
   await components.whenReady();
   console.log('[AMFL] Widevine components status:', components.status());
 
-  const splash = createSplash();
-  createWindow(splash);
+  await initDiscordRPC();
 
   setupPermissions();
+
+  const splash = createSplash();
+  createWindow(splash);
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -105,6 +178,10 @@ app.whenReady().then(async () => {
   });
 });
 
-//app.on("window-all-closed", () => {
-//  if (process.platform !== "darwin") app.quit();
-//});
+app.on('will-quit', () => {
+  destroyRPC();
+});
+
+// app.on("window-all-closed", () => {
+//   if (process.platform !== "darwin") app.quit();
+// });

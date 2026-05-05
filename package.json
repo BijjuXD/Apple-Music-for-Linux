@@ -15,9 +15,10 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
+    "@types/discord-rpc": "^4.0.10",
+    "@types/node": "^20.0.0",
     "electron": "https://github.com/castlabs/electron-releases#v40.7.0+wvcus",
     "electron-builder": "^24.13.3",
-    "@types/node": "^20.0.0",
     "typescript": "^5.4.0"
   },
   "build": {
@@ -34,12 +35,26 @@
     ],
     "linux": {
       "target": [
-        { "target": "AppImage", "arch": ["x64", "arm64"] },
-        { "target": "deb", "arch": ["x64"] }
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64"
+          ]
+        }
       ],
       "category": "Audio",
       "icon": "assets/icon.png",
       "executableName": "apple-music"
     }
+  },
+  "dependencies": {
+    "discord-rpc": "^4.0.1"
   }
 }

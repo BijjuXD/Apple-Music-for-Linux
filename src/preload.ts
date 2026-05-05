@@ -29,4 +29,10 @@ const bridge: ElectronBridge = {
   },
 };
 
+contextBridge.exposeInMainWorld('electronAPI', {
+  updateDiscordRPC: (data: { song: string; artist: string; album: string }) =>
+    ipcRenderer.send('discord-rpc-update', data),
+  clearDiscordRPC: () => ipcRenderer.send('discord-rpc-clear'),
+});
+
 contextBridge.exposeInMainWorld('electronBridge', bridge);

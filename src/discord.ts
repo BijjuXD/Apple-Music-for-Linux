@@ -138,7 +138,8 @@ class DiscordIPC extends EventEmitter {
     song: string,
     artist: string,
     album: string,
-    startTimestamp?: number
+    startTimestamp?: number,
+    url?: string
   ): void {
     if (!this.connected || !this.socket) {
       console.warn("[RPC] setActivity called but not connected");
@@ -164,8 +165,8 @@ class DiscordIPC extends EventEmitter {
           },
           buttons: [
             {
-              label: "Listen Now",
-              url: "https://github.com/BijjuXD/Apple-Music-for-Linux",
+              label: "Listen on Apple Music",
+              url: url || "https://music.apple.com",
             },
           ],
           instance: false,
@@ -196,7 +197,7 @@ class DiscordIPC extends EventEmitter {
           },
           buttons: [
             {
-              label: "Listen Now",
+              label: "Get Apple Music App",
               url: "https://github.com/BijjuXD/Apple-Music-for-Linux",
             },
           ],
@@ -245,17 +246,18 @@ export function setActivity(
   song: string,
   artist: string,
   album: string,
-  startTimestamp?: number
+  startTimestamp?: number,
+  url?: string
 ) {
-  ipc?.setActivity(song, artist, album, startTimestamp);
-}
-
-export function clearActivity() {
-  ipc?.clearActivity();
+  ipc?.setActivity(song, artist, album, startTimestamp, url);
 }
 
 export function setIdleActivity() {
   ipc?.setIdleActivity();
+}
+
+export function clearActivity() {
+  ipc?.clearActivity();
 }
 
 export function destroyRPC() {

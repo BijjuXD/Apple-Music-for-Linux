@@ -1,6 +1,8 @@
-import { app, BrowserWindow, components, session } from 'electron';
+import { app, BrowserWindow, components, session, Tray, Menu, nativeImage } from 'electron';
 import { initDiscordRPC, setActivity, setIdleActivity, clearActivity, destroyRPC } from './discord';
 import * as path from 'path';
+
+let tray: Tray | null = null;
 
 function createSplash() {
   const splash = new BrowserWindow({
@@ -67,8 +69,9 @@ function startTrackPolling(mainWindow: BrowserWindow) {
           const artist = artistParts.join(', ');
 
           const paused = !!document.querySelector('button[aria-label="Play"]');
+          const url = window.location.href;
 
-          return { song, artist, album, paused };
+          return { song, artist, album, paused, url };
         })()
       `);
 
@@ -78,20 +81,60 @@ function startTrackPolling(mainWindow: BrowserWindow) {
         if (track.song !== lastSong) {
           lastSong = track.song;
           songStartTime = Date.now();
-          setActivity(track.song, track.artist, track.album, songStartTime);
+          setActivity(track.song, track.artist, track.album, songStartTime, track.url);
         }
       } else {
         if (lastSong !== null) {
           lastSong = null;
           setIdleActivity();
-        } else if (track === null && lastSong === null) {
-          //
         }
       }
     } catch (err) {
       console.warn('[Poll] error:', err);
     }
   }, 5_000);
+}
+
+function createTray(mainWindow: BrowserWindow) {
+  const iconPath = path.join(app.getAppPath(), 'assets', 'icon_tray.png');
+  const icon = nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 });
+
+  tray = new Tray(icon);
+  tray.setToolTip('Apple Music');
+
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: 'Show',
+      click: () => {
+        mainWindow.show();
+        mainWindow.focus();
+      },
+    },
+    {
+      label: 'Hide',
+      click: () => mainWindow.hide(),
+    },
+    { type: 'separator' },
+    {
+      label: 'Quit',
+      click: () => {
+        (app as any).isQuitting = true;
+        destroyRPC();
+        app.quit();
+      },
+    },
+  ]);
+
+  tray.setContextMenu(contextMenu);
+
+  tray.on('click', () => {
+    if (mainWindow.isVisible()) {
+      mainWindow.hide();
+    } else {
+      mainWindow.show();
+      mainWindow.focus();
+    }
+  });
 }
 
 const createWindow = (splash: BrowserWindow): BrowserWindow => {
@@ -119,6 +162,7 @@ const createWindow = (splash: BrowserWindow): BrowserWindow => {
     splash?.close();
     mainWindow.show();
     startTrackPolling(mainWindow);
+    createTray(mainWindow);
   });
 
   mainWindow.webContents.on('did-finish-load', () => {
@@ -135,6 +179,13 @@ const createWindow = (splash: BrowserWindow): BrowserWindow => {
     mainWindow.setTitle(clean || 'Music');
   });
 
+  mainWindow.on('close', (event) => {
+    if (!(app as any).isQuitting) {
+      event.preventDefault();
+      mainWindow.hide();
+    }
+  });
+
   mainWindow.on('closed', () => {
     if (pollInterval) {
       clearInterval(pollInterval);
@@ -142,6 +193,8 @@ const createWindow = (splash: BrowserWindow): BrowserWindow => {
     }
     lastSong = null;
     clearActivity();
+    tray?.destroy();
+    tray = null;
   });
 
   return mainWindow;
@@ -158,6 +211,8 @@ function setupPermissions(): void {
     (_webContents, permission) => ALLOWED_PERMISSIONS.has(permission)
   );
 }
+
+(app as any).isQuitting = false;
 
 app.whenReady().then(async () => {
   await components.whenReady();
@@ -176,6 +231,10 @@ app.whenReady().then(async () => {
       createWindow(splash);
     }
   });
+});
+
+app.on('before-quit', () => {
+  (app as any).isQuitting = true;
 });
 
 app.on('will-quit', () => {

@@ -1,0 +1,38 @@
+{
+  "appId": "com.archosoftware.amfl",
+  "productName": "Music",
+  "copyright": "Apple Music Desktop Client for Linux.",
+  "electronVersion": "40.7.0+wvcus",
+  "electronDownload": {
+    "mirror": "https://github.com/castlabs/electron-releases/releases/download/v"
+  },
+  "directories": {
+    "output": "release"
+  },
+  "files": [
+    "dist/**/*",
+    "assets/**/*",
+    "resources/**/*",
+    "src/splash.html"
+  ],
+  "linux": {
+    "target": [
+      {
+        "target": "AppImage",
+        "arch": ["x64", "arm64"]
+      },
+      {
+        "target": "deb",
+        "arch": ["x64"]
+      }
+    ],
+    "category": "Audio",
+    "icon": "assets/icon.png",
+    "executableName": "apple-music",
+    "desktop": {
+      "Name": "Music",
+      "Comment": "Apple Music Desktop Client for Linux",
+      "Categories": "Audio;Music;Player;"
+    }
+  }
+}

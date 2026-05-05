@@ -13,6 +13,8 @@
     "pack": "pnpm build && electron-builder --linux",
     "pack:appimage": "pnpm build && electron-builder --linux AppImage",
     "pack:deb": "pnpm build && electron-builder --linux deb",
+    "pack:snap": "pnpm build && electron-builder --linux snap",
+    "pack:tar": "pnpm build && electron-builder --linux tar.gz",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

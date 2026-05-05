@@ -24,6 +24,14 @@
       {
         "target": "deb",
         "arch": ["x64"]
+      },
+      {
+        "target": "snap",
+        "arch": ["x64"]
+      },
+      {
+        "target": "tar.gz",
+        "arch": ["x64"]
       }
     ],
     "category": "Audio",
@@ -34,5 +42,9 @@
       "Comment": "Apple Music Desktop Client for Linux",
       "Categories": "Audio;Music;Player;"
     }
+  },
+  "snap": {
+    "confinement": "strict",
+    "plugs": ["network", "home", "audio-playback", "x11", "wayland"]
   }
 }

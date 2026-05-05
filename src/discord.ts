@@ -189,7 +189,7 @@ class DiscordIPC extends EventEmitter {
         activity: {
           type: 2,
           details: "Not Playing...",
-          state: "Not playing anything",
+          state: "Idling...",
           assets: {
             large_image: "music",
             large_text: "Apple Music",

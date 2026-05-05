@@ -158,6 +158,9 @@ const createWindow = (splash: BrowserWindow): BrowserWindow => {
   mainWindow.webContents.setUserAgent(USER_AGENT);
   mainWindow.loadURL("https://music.apple.com/");
 
+  mainWindow.webContents.setBackgroundThrottling(false);
+  mainWindow.webContents.setFrameRate(1);
+
   mainWindow.once("ready-to-show", () => {
     splash?.close();
     mainWindow.show();

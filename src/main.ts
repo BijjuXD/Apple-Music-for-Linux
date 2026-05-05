@@ -1,5 +1,6 @@
-import { app, BrowserWindow, components, session, Tray, Menu, nativeImage } from 'electron';
+import { app, BrowserWindow, components, session, Tray, Menu, nativeImage, Notification, shell } from 'electron';
 import { initDiscordRPC, setActivity, setIdleActivity, clearActivity, destroyRPC } from './discord';
+import { checkForUpdates } from './updateChecker';
 import * as path from 'path';
 
 let tray: Tray | null = null;
@@ -225,6 +226,8 @@ app.whenReady().then(async () => {
 
   setupPermissions();
 
+  checkForUpdates();
+  
   const splash = createSplash();
   createWindow(splash);
 

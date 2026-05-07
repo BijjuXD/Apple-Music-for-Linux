@@ -1,5 +1,10 @@
 import { app, Notification, shell } from 'electron';
-import axios from 'axios';
+
+interface VersionResponse {
+  version: string;
+  comment?: string;
+  link?: string;
+}
 
 function isNewerVersion(current: string, remote: string): boolean {
   const c = current.split('.').map(Number);
@@ -16,34 +21,45 @@ function isNewerVersion(current: string, remote: string): boolean {
   return false;
 }
 
-export async function checkForUpdates() {
-  let data = null;
+function isValidResponse(data: any): data is VersionResponse {
+  return data && typeof data.version === 'string';
+}
+
+async function fetchWithTimeout(url: string, timeout = 5000): Promise<VersionResponse> {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeout);
 
   try {
-    const res = await axios.get('https://versions.archosoftware.com/v1/amfl', {
-      timeout: 5000,
-    });
+    const res = await fetch(url, { signal: controller.signal });
 
-    if (res.status === 200 && res.data?.version) {
-      console.log('[Updater] Primary success');
-      data = res.data;
-    } else {
-      throw new Error('Invalid primary response');
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}`);
     }
+
+    const data = await res.json();
+
+    if (!isValidResponse(data)) {
+      throw new Error('Invalid response shape');
+    }
+
+    return data;
+  } finally {
+    clearTimeout(id);
+  }
+}
+
+export async function checkForUpdates() {
+  let data: VersionResponse | null = null;
+
+  try {
+    data = await fetchWithTimeout('https://versions.archosoftware.com/v1/amfl');
+    console.log('[Updater] Primary success');
   } catch (err: any) {
     console.warn('[Updater] Primary failed:', err?.message || err);
 
     try {
-      const fallbackRes = await axios.get('https://amfl-versions.vercel.app/v1/amfl', {
-        timeout: 5000,
-      });
-
-      if (fallbackRes.status === 200 && fallbackRes.data?.version) {
-        console.log('[Updater] Fallback success');
-        data = fallbackRes.data;
-      } else {
-        throw new Error('Invalid fallback response');
-      }
+      data = await fetchWithTimeout('https://amfl-versions.vercel.app/v1/amfl');
+      console.log('[Updater] Fallback success');
     } catch (fallbackErr: any) {
       console.warn('[Updater] Fallback failed:', fallbackErr?.message || fallbackErr);
       return;
@@ -65,7 +81,9 @@ export async function checkForUpdates() {
       });
 
       notification.on('click', () => {
-        if (data.link) shell.openExternal(data.link);
+        if (data.link) {
+          shell.openExternal(data.link);
+        }
       });
 
       notification.show();

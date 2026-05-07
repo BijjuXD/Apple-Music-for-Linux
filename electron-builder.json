@@ -13,7 +13,7 @@
     "dist/**/*",
     "assets/**/*",
     "resources/**/*",
-    "src/splash.html"
+    "package.json"
   ],
   "linux": {
     "target": [
@@ -35,7 +35,7 @@
       }
     ],
     "category": "Audio",
-    "icon": "assets/icon.png",
+    "icon": "assets/logo.png",
     "executableName": "apple-music",
     "desktop": {
       "Name": "Music",
